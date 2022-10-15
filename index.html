@@ -64,7 +64,7 @@
      <!-- 주의: 사이트를 배포할 때는 "development.js"를 "production.min.js"로 대체하세요. -->
   <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js" crossorigin></script>
     <script type="text/babel">
       const jsonLocalStorage = {
         setItem: (key, value) => {
@@ -73,6 +73,18 @@
         getItem: (key) => {
           return JSON.parse(localStorage.getItem(key));
         },
+      };
+
+   
+      const fetchCat = async (text) => {
+        const OPEN_API_DOMAIN = "https://jsonplaceholder.typicode.com/photos";
+
+        
+        const response = await fetch(
+          `${OPEN_API_DOMAIN}?id=${text}`
+        );
+        const responseJson = await response.json();
+        return `${responseJson[0].url}`;
       };
 
       const Title = (props) => {
@@ -104,7 +116,7 @@
             return;
           }
 
-          updateMainCat();
+          updateMainCat(value);
         }
         
         return (
@@ -133,6 +145,11 @@
       }
 
       function Favorites({favorites}){
+
+        if(favorites.length === 0){
+          return <div>사진 위  하트를 눌러 고양이 사진을 저장해봐요!</div>
+        }
+
         return(
           <ul className="favorites">
             {favorites.map((cat) => (
@@ -142,7 +159,9 @@
         );
       }
 
-      const MainCard = ({src, onHeartClick}) => {
+      const MainCard = ({src, onHeartClick, aleadyFavorite}) => {
+
+        const heartIcon = aleadyFavorite ? "💖" : "🤍";
        
         return(
           <div className="main-card">
@@ -153,7 +172,7 @@
             />
             <button 
               onClick={onHeartClick}             
-              >🤍</button>
+              >{heartIcon}</button>
           </div>
         );
       };
@@ -162,15 +181,40 @@
         const cat1 = "../resources/cat.jpg";
         const cat2 = "../resources/cat2.jpg";
         const cat3 = "../resources/cat3.jpg";
-        const [counter, setCounter] = React.useState(jsonLocalStorage.getItem("counter"));    
+        const [counter, setCounter] = React.useState(() => {          
+          return jsonLocalStorage.getItem("counter");
+        });
         const [mainCat, setMainCat] = React.useState(cat1);
-        const [favorites, setFavories] = React.useState(jsonLocalStorage.getItem("favorites") ||[]);       
+        const [favorites, setFavories] = React.useState(() => {
+          return jsonLocalStorage.getItem("favorites") ||[];
+        });       
 
-        function updateMainCat(event){      
-          setMainCat(cat2); 
-          const nextCounter = counter + 1;
-          setCounter(nextCounter);
-          jsonLocalStorage.setItem("counter", nextCounter);     
+        const aleadyFavorite = favorites.includes(mainCat);
+
+        async function setInitialCat(){
+          const newCat = await fetchCat("40");
+          console.log(newCat);
+          setMainCat(newCat);
+        };
+
+
+        React.useEffect(() => {
+          setInitialCat();
+        }, []);
+
+             
+
+        async function updateMainCat(value){    
+          const newCat = await fetchCat(value);
+          setMainCat(newCat); 
+          
+        
+          setCounter((prev) => {
+            const nextCounter = prev + 1;
+            jsonLocalStorage.setItem("counter", nextCounter); 
+            return nextCounter;
+          });
+              
         }
 
         function handleHeartClick(){        
@@ -181,9 +225,11 @@
 
         return (
           <div>
-            <Title>{counter}번째 고양이 가라사대</Title>          
+
+           
+            <Title>{counter > 0 ? `${counter}번째 ` : ''}고양이 가라사대</Title>          
             <Form updateMainCat={updateMainCat}/>
-            <MainCard src={mainCat} onHeartClick={handleHeartClick}/>
+            <MainCard src={mainCat} onHeartClick={handleHeartClick} aleadyFavorite={aleadyFavorite}/>
             <Favorites favorites={favorites}/>
           </div>
         );        
